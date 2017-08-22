@@ -19,21 +19,12 @@ class GamesController < ApplicationController
 
   def create
     # add Game.new
-    game_name = new_game_params[:game_title]
-    @game = Game.new(name: game_name)
-    if @game.save
-      @initial_state = State.new(name: new_game_params[:state_name], description: new_game_params[:beginning_state], game_id: @game.id)
-      if @initial_state.save
-        @game.initial_state_id = @initial_state.id
-        @game.save
-        redirect_to "/games/new/#{@game.id}/states"
-      else
-        redirect_back fallback_location: { action: 'new'}
-        flash[:notice] = 'something went wrong with saving the state!'
-      end
-    else
+    begin
+      @game, @initial_state = Game.init_game(new_game_params[:game_title], new_game_params[:state_name], new_game_params[:beginning_state])
+      redirect_to "/games/new/#{@game.id}/states"
+    rescue => err
       redirect_back fallback_location: { action: 'new'}
-      flash[:notice] = 'something went wrong with creating the game!'
+      flash[:notice] = err.message
     end
   end
 
@@ -131,10 +122,8 @@ class GamesController < ApplicationController
   # displays a list of the names of published games
   def display_games_index
     index = ['Welcome to textVENTURE! Please choose a game from the selection below:']
-    Game.where(publish: true).find_each do |game|
-      index.push(game.name)
-    end
-    index.push('Simply type the name of the game you wish to play, and hit enter')
+    index += Game.find_game_names
+    index << 'Simply type the name of the game you wish to play, and hit enter'
   end
 
   # Remove whitespacing, make downcase
